@@ -69,7 +69,7 @@ owner, with no telemetry. **Leantime's own onboarding project, "My Project", is 
 that project with sample tasks as the person who installs it, and a console run is no person, so that part is refused;
 the builder says so when it installs. The sample project is the builder's own, Webship site. The workspace account and
 the default accounts are marked as past Leantime's first-login window, so they land on their work; Leantime still shows
-each person its tour of a screen once.
+a person the window of help of a screen once a session, which the step pack closes by its own button.
 
 The site's own values, its session key, are made for it and kept in `leantime/env` of the project, which only you can
 read. The builder never prints them.

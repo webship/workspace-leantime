@@ -50,9 +50,9 @@ The site needs its default accounts and its sample content:
 Before you write a scenario for a screen, open that screen in a browser first, in a tab of your own, as the account the
 scenario uses, and note the headings, names, messages and marks a person meets. A step for a screen you did not look
 at is a guess. Things the browser shows only when you look: the login asks for the address and the password on one
-form, and a wrong password comes back with "Username or password incorrect!"; a screen shows a person its tour the
-first time ("I'll explore on my own"), which the steps close by its own button and say so; a task opens in a window
-over the board, its address ending in `#/tickets/showTicket/<number>`, and its number is the site's, not the
+form, and a wrong password comes back with "Username or password incorrect!"; a screen shows a person its window of
+help once a session ("I'll explore on my own"), which the steps close by its own button and say so, and which takes a
+task's window with it when it comes over one; a task opens in a window over the board, its address ending in `#/tickets/showTicket/<number>`, and its number is the site's, not the
 project's ("#1"); its status and its assignee are lists, and Save saves them; a comment goes through "Add a new
 comment" in its Discussion, the editor and Save; Time Tracking is a tab of the window (the hours, a date, a kind, a
 note, Save); "Created by" under the title names who made it; a Commenter gets the window with its Save buttons and

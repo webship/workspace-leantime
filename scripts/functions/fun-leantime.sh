@@ -582,10 +582,15 @@ PYEOF
   fi
 
   # The scenarios log in as the default accounts and read the sample project: make sure the site has them, once it
-  # answers again (installing the testing stack may restart the project, and Leantime with it).
-  if ( cd "${project_path}" && leantime_wait > /dev/null 2>&1 && add_leantime_users > /dev/null 2>&1 && leantime_site content < /dev/null > /dev/null 2>&1 ) ; then
-    echo "  the default accounts and the sample content are on the site (${users[*]})" ;
+  # answers again (installing the testing stack may restart the project, and Leantime with it). Each part says when it
+  # did not work; add_leantime_users ends in the folder, so the sample content is asked for in the project again.
+  if ! ( cd "${project_path}" && leantime_wait > /dev/null 2>&1 ) ; then
+    echo "  Leantime does not answer: is the site running (ddev start in ${project_path})? The default accounts and the sample content were not checked." ;
+  elif ! ( cd "${project_path}" && add_leantime_users > /dev/null 2>&1 ) ; then
+    echo "  The default accounts could not be written (bash cmd-tools-leantime-cli.sh <site> --add-users says why)." ;
+  elif ! ( cd "${project_path}" && leantime_site content < /dev/null > /dev/null 2>&1 ) ; then
+    echo "  The sample content could not be written (bash cmd-tools-leantime-cli.sh <site> --sample-content says why)." ;
   else
-    echo "  The default accounts could not be written: is the site running (ddev start in ${project_path})?" ;
+    echo "  the default accounts and the sample content are on the site (${users[*]})" ;
   fi
 }

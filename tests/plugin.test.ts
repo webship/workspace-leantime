@@ -184,6 +184,11 @@ test('the functions carry the names the core\'s tools look for, and run Leantime
   const testing = FUN.slice(FUN.indexOf('function testing_configure_leantime()'));
   assert.match(testing, /registry="\$\{registry\}\$\{user\}\|\$\{!user_mail\}\|\$\{!user_password\}\|\$\{!user_first\} \$\{!user_last\}"/, 'the pack logs in with the address and shows the whole name');
   assert.match(testing, /project: process\.env\.PROJECT \|\| '%s',/, 'the project the pack works in');
+  // add_leantime_users ends in the folder: the sample content is asked for in the project again, and each part says
+  // when it did not work.
+  assert.match(FUN, /^function add_leantime_users\(\) \{[\s\S]*?\n  cd \$\{WORKSPACE_ROOT\}\/\$\{doc_name\};\n  return \$\{status\} ;\n\}/m);
+  assert.match(testing, /elif ! \( cd "\$\{project_path\}" && leantime_site content < \/dev\/null > \/dev\/null 2>&1 \) ; then/, 'the sample content, in the project');
+  for (const said of ['Leantime does not answer', 'The default accounts could not be written', 'The sample content could not be written']) assert.ok(testing.includes(said), said);
 });
 
 test('the assistant is told how to build, test and connect a site', () => {

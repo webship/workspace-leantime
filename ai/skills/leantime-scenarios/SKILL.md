@@ -42,8 +42,9 @@ reads them and never changes them.
 ## Traps found on real sites
 
 - A task opens in a window over the board: the steps find it by the task's own address, never by its place.
-- A screen shows a person its tour the first time ("I'll explore on my own"); the steps close it by its own button
-  and the run says so.
+- A screen shows a person its window of help once a session ("I'll explore on my own"); the steps close it by its
+  own button and the run says so. The site keeps one window at a time: the steps close the board's before they open a
+  task, and ask for the task again when one came over it.
 - A comment stays: change only a task the scenario made (`there is a task "Webship test …"`), which goes after it.
 - The assignee list offers everyone of the project's team by their whole name, a Commenter and a Read Only person
   too: name the one the scenario means ("Owner Test").
