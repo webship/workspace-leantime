@@ -1,0 +1,103 @@
+{
+  "name": "@webship.co/workspace-leantime",
+  "version": "1.0.0",
+  "description": "Leantime for Webship Workspace: the builder (`cmd-leantime-project.sh`, a site of the open-source project management software, from Leantime's own image on the project's own MySQL, in containers: DDEV, with the default accounts in their roles of a sample project and its tasks, sprint, comments and logged time) and its tool in every sites folder, the Leantime step pack wired into the testing setup, the tasks of a Leantime as work items of the tracker family (list, read, analyze, and do the work with the workspace's AI CLI on a branch; comments, statuses, assignees and logged time after a person's click, writes off by default), and its AI items in their folders.",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "license": "ISC",
+  "engines": {
+    "node": ">=24"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/webship/workspace-leantime.git"
+  },
+  "workspacePlugin": {
+    "name": "leantime",
+    "label": "Leantime",
+    "summary": "A builder for Leantime sites with a sample project and sprint; its tasks as work items",
+    "needs": [
+      [
+        "dev",
+        "test",
+        "sandboxes",
+        "demos"
+      ],
+      "ai-agents",
+      "ai-skills",
+      "ai-commands",
+      "ai-prompts"
+    ],
+    "typeActions": {
+      "leantime": [
+        "sites",
+        "code"
+      ]
+    },
+    "settingsFile": "plugin.leantime.settings.yml",
+    "settingsTemplate": "config/plugin.leantime.settings.yml",
+    "labels": "config/settings.labels.yml",
+    "commands": {
+      "types": [
+        "sites"
+      ],
+      "workspaces": [
+        "dev",
+        "test",
+        "sandboxes",
+        "demos"
+      ],
+      "files": [
+        "commands/cmd-leantime-project.sh",
+        "commands/cmd-tools-leantime-cli.sh"
+      ]
+    },
+    "scripts": {
+      "functions": [
+        "scripts/functions/fun-leantime.sh"
+      ],
+      "args": [
+        "scripts/args/arg-leantime.sh",
+        "scripts/args/arg-leantime-cli.sh"
+      ],
+      "machine": [
+        "scripts/docker-compose.leantime.yaml",
+        "scripts/leantime-site.php"
+      ]
+    },
+    "ai": {
+      "agents": [],
+      "skills": [],
+      "commands": [],
+      "prompts": []
+    },
+    "features": []
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
+    "test": "npm run build && node --test dist/tests/*.test.js",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "files": [
+    "dist/src",
+    "ai",
+    "commands",
+    "config",
+    "features",
+    "scripts",
+    "testing",
+    "README.md"
+  ],
+  "dependencies": {
+    "@webship.co/workspace-tracker": "^1.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@webship.co/workspace-plugin-api": "^1.0.11",
+    "typescript": "^5.9.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

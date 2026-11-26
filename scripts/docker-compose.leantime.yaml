@@ -1,0 +1,46 @@
+# Leantime of this project: Leantime's own image (its web server and PHP) on the project's own MySQL (the container
+# tool's db service), served at the project's address; the project's web container keeps the mail catcher. Written by
+# the Leantime builder of the workspace (the plugin's docker-compose.leantime.yaml); build again rather than editing by
+# hand. The site's own values (its session key) are in leantime/env, which only you can read.
+services:
+  web:
+    environment:
+      - HTTP_EXPOSE=8093:80,8025:8025
+      - HTTPS_EXPOSE=8457:80,8026:8025
+  leantime:
+    image: "${LEANTIME_IMAGE:-docker.io/leantime/leantime:3.17.0}"
+    container_name: ddev-${DDEV_SITENAME}-leantime
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: ${DDEV_APPROOT}
+    restart: "no"
+    expose:
+      - "8080"
+    # Leantime installs into the project's database once it takes connections.
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ${DDEV_APPROOT}/leantime/env
+    volumes:
+      # The plugin's scripts, which the builder and the tool run in this container.
+      - ${DDEV_APPROOT}/leantime:/opt/webship:ro
+      # What Leantime keeps beside its database, named after the project.
+      - userfiles:/var/www/html/userfiles
+      - public_userfiles:/var/www/html/public/userfiles
+      - plugins:/var/www/html/app/Plugins
+      - logs:/var/www/html/storage/logs
+    environment:
+      VIRTUAL_HOST: ${DDEV_HOSTNAME}
+      HTTP_EXPOSE: "80:8080"
+      HTTPS_EXPOSE: "443:8080"
+# Named after the project, so removing the project removes them with its database, and a new build starts empty.
+volumes:
+  userfiles:
+    name: ddev-${DDEV_SITENAME}-leantime-userfiles
+  public_userfiles:
+    name: ddev-${DDEV_SITENAME}-leantime-public-userfiles
+  plugins:
+    name: ddev-${DDEV_SITENAME}-leantime-plugins
+  logs:
+    name: ddev-${DDEV_SITENAME}-leantime-logs
