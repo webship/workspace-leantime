@@ -443,3 +443,130 @@ function leantime_cli_tool() {
   fi
   cd ${WORKSPACE_ROOT}/${doc_name};
 }
+
+# The step pack in the testing stack of a Leantime site. The core's testing_configure calls this in the project
+# folder once webship-js is scaffolded and before the dependencies are installed; for a project that is not one of
+# this plugin's it changes nothing.
+#
+# It adds the pack to package.json, lists its step definitions in cucumber.js after webship-js's own, gives cucumber.js
+# the tags that keep the pack's assertions that must fail out of a normal run, the account that prepares and removes
+# test content (manager), the project the steps work in when they name none, and the users registry of the default
+# accounts (a handle a scenario reads, mapped to an account; never the workspace account), and writes a first feature
+# when the project has none of its own. Every part is skipped when it is already there, so a second run adds what the
+# first missed and never resets a suite.
+function testing_configure_leantime() {
+  local project_path="$1";
+  leantime_is_project "${project_path}" || return 0 ;
+  if [ ! -f "${project_path}/cucumber.js" ] || [ ! -f "${project_path}/package.json" ] ; then
+    echo "  Leantime: cucumber.js is not here yet — run the testing setup again once webship-js is scaffolded." ;
+    return 1 ;
+  fi
+
+  echo "Adding the Leantime step pack (${LEANTIME_STEPS_PACKAGE} ${LEANTIME_STEPS_VERSION}).";
+  set_leantime_users ;
+  # Leantime logs in with the e-mail address, and shows the person's whole name.
+  local registry="" user user_name user_mail user_password user_first user_last ;
+  for user in "${users[@]}" ; do
+    user_name="user_${user}_name"; user_mail="user_${user}_mail"; user_password="user_${user}_password"; user_first="user_${user}_first"; user_last="user_${user}_last";
+    registry="${registry}${user}|${!user_mail}|${!user_password}|${!user_first} ${!user_last}"$'\n' ;
+  done
+
+  local address ;
+  address="$(cd "${project_path}" && leantime_url "$(sed -n 's/^name:[[:space:]]*"\{0,1\}\([A-Za-z0-9._-]*\)"\{0,1\}[[:space:]]*$/\1/p' .ddev/config.yaml 2>/dev/null | head -n 1)")" ;
+
+  python3 - "${project_path}" "${LEANTIME_STEPS_PACKAGE}" "${LEANTIME_STEPS_VERSION}" 'LEANTIME' "${registry}" "${address}" "${LEANTIME_PROJECT_NAME}" <<'PYEOF' || return 1
+import json, re, sys
+
+project, pack, version, prefix, registry, address, sample = sys.argv[1:8]
+
+# package.json: the pack as a dev dependency, at the release line this plugin was proven on.
+pkg_file = project + '/package.json'
+pkg = json.load(open(pkg_file))
+if pack not in pkg.get('dependencies', {}) and pack not in pkg.get('devDependencies', {}):
+    pkg.setdefault('devDependencies', {})[pack] = version
+    open(pkg_file, 'w').write(json.dumps(pkg, indent=4) + '\n')
+    print('  package.json: %s %s' % (pack, version))
+
+cucumber_file = project + '/cucumber.js'
+src = open(cucumber_file).read()
+before = src
+
+if ('node_modules/%s/' % pack) not in src:
+    line = "'node_modules/%s/tests/step-definitions/**/*.js'," % pack
+    core = re.search(r"^([ \t]*)'node_modules/webship-js/tests/step-definitions/[^']*',.*$", src, re.M)
+    opening = re.search(r"^([ \t]*)require:[ \t]*\[[ \t]*$", src, re.M)
+    if core:
+        src = src[:core.end()] + '\n' + core.group(1) + line + src[core.end():]
+    elif opening:
+        src = src[:opening.end()] + '\n' + opening.group(1) + '  ' + line + src[opening.end():]
+    else:
+        sys.exit("  cucumber.js has no require list this can add to. Add this line to it:\n    " + line)
+    print('  cucumber.js: the step definitions of %s' % pack)
+
+if not re.search(r"^[ \t]*tags:", src, re.M):
+    default = re.search(r"^([ \t]*)default:[ \t]*\{[ \t]*$", src, re.M)
+    if default:
+        pad = default.group(1) + '  '
+        block = [
+            pad + "// The pack's assertions that must fail are no part of a normal run.",
+            pad + "tags: process.env.CUCUMBER_TAGS || 'not @wip and not @must-fail',",
+        ]
+        src = src[:default.end()] + '\n' + '\n'.join(block) + src[default.end():]
+        print('  cucumber.js: the tags that keep the assertions that must fail out of a normal run')
+
+world = re.search(r"^([ \t]*)worldParameters:[ \t]*\{[ \t]*$", src, re.M)
+if not world:
+    sys.exit("  cucumber.js has no worldParameters block to add the users registry to.")
+pad = world.group(1) + '  '
+additions = []
+if not re.search(r"^[ \t]*manager:", src, re.M):
+    additions += [
+        pad + "// The account that prepares and removes test content through the site's API: an Admin of the project.",
+        pad + "manager: process.env.MANAGER || 'owner',",
+    ]
+if not re.search(r"^[ \t]*project:", src, re.M):
+    additions += [
+        pad + "// The project the steps work in when they name none (its name).",
+        pad + "project: process.env.PROJECT || '%s'," % sample,
+    ]
+if not re.search(r"^[ \t]*users:[ \t]*\{", src, re.M):
+    rows = [r.split('|') for r in registry.splitlines() if r.strip()]
+    additions += [
+        pad + "// The users registry: a handle a scenario reads, mapped to an account of the site (the default accounts:",
+        pad + "// cmd-tools-leantime-cli.sh --add-users). Override one with %s_<HANDLE>_USER and %s_<HANDLE>_PASSWORD." % (prefix, prefix),
+        pad + "users: {",
+    ]
+    for handle, mail, password, display in rows:
+        env = '%s_%s' % (prefix, handle.upper())
+        additions.append(pad + "  %s: { username: process.env.%s_USER || '%s', password: process.env.%s_PASSWORD || '%s', name: '%s' }," % (handle, env, mail, env, password, display))
+    additions.append(pad + "},")
+    print('  cucumber.js: the users registry (%s)' % ', '.join(r[0] for r in rows))
+if additions:
+    src = src[:world.end()] + '\n' + '\n'.join(additions) + src[world.end():]
+    print('  cucumber.js: the managing account and the project of the steps')
+
+# The address the suite opens when LAUNCH_URL is not set: the placeholder of the scaffold becomes the site's.
+placeholder = "process.env.LAUNCH_URL || 'http://localhost:8080'"
+if placeholder in src:
+    src = src.replace(placeholder, "process.env.LAUNCH_URL || '%s'" % address)
+    print('  cucumber.js: the address of the site (%s)' % address)
+
+if src != before:
+    open(cucumber_file, 'w').write(src)
+PYEOF
+
+  # A first feature, when the project has none for the site yet.
+  local feature="${WORKSPACE_SCRIPTS}/plugins/leantime/site.feature" ;
+  if [ -f "${feature}" ] && [ ! -f "${project_path}/tests/features/site.feature" ] ; then
+    mkdir -p "${project_path}/tests/features" && cp "${feature}" "${project_path}/tests/features/site.feature" \
+      && echo "  tests/features/site.feature: a first feature for the tasks" ;
+  fi
+
+  # The scenarios log in as the default accounts and read the sample project: make sure the site has them, once it
+  # answers again (installing the testing stack may restart the project, and Leantime with it).
+  if ( cd "${project_path}" && leantime_wait > /dev/null 2>&1 && add_leantime_users > /dev/null 2>&1 && leantime_site content < /dev/null > /dev/null 2>&1 ) ; then
+    echo "  the default accounts and the sample content are on the site (${users[*]})" ;
+  else
+    echo "  The default accounts could not be written: is the site running (ddev start in ${project_path})?" ;
+  fi
+}
