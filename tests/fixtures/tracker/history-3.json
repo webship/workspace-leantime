@@ -1,0 +1,28 @@
+{
+ "jsonrpc": "2.0",
+ "result": [
+  {
+   "id": 2,
+   "userId": 2,
+   "userName": "Owner Test",
+   "dateModified": "2026-11-26 01:08:04",
+   "field": "description",
+   "fieldLabel": "Description",
+   "oldValue": null,
+   "newValue": null,
+   "isDescriptionChange": true
+  },
+  {
+   "id": 1,
+   "userId": 2,
+   "userName": "Owner Test",
+   "dateModified": "2026-11-26 01:08:04",
+   "field": "headline",
+   "fieldLabel": "Headline",
+   "oldValue": null,
+   "newValue": "Webship test explore, renamed",
+   "isDescriptionChange": false
+  }
+ ],
+ "id": 1
+}

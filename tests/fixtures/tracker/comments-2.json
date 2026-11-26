@@ -1,0 +1,21 @@
+{
+ "jsonrpc": "2.0",
+ "result": [
+  {
+   "id": 2,
+   "module": "ticket",
+   "text": "<p>From outside the project: the usage line reads greting here too.</p>",
+   "date": "2026-11-26 01:04:09",
+   "moduleId": 2,
+   "userId": 4,
+   "commentParent": 0,
+   "status": "",
+   "firstname": "Commenter",
+   "lastname": "Test",
+   "profileId": "",
+   "userModified": "2026-11-26 01:04:08",
+   "rawDate": "2026-11-26 01:04:09"
+  }
+ ],
+ "id": 1
+}

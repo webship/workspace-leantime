@@ -1,0 +1,21 @@
+{
+ "jsonrpc": "2.0",
+ "result": [
+  {
+   "id": 1,
+   "module": "ticket",
+   "text": "<p>Seen on the test site: the greeting prints Helo.</p>",
+   "date": "2026-11-26 01:04:09",
+   "moduleId": 1,
+   "userId": 2,
+   "commentParent": 0,
+   "status": "",
+   "firstname": "Owner",
+   "lastname": "Test",
+   "profileId": "",
+   "userModified": "2026-11-26 01:04:08",
+   "rawDate": "2026-11-26 01:04:09"
+  }
+ ],
+ "id": 1
+}

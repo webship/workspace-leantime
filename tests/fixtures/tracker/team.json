@@ -1,0 +1,76 @@
+{
+ "jsonrpc": "2.0",
+ "result": [
+  {
+   "id": 2,
+   "firstname": "Owner",
+   "lastname": "Test",
+   "username": "owner@example.com",
+   "notifications": 1,
+   "profileId": "",
+   "jobTitle": "",
+   "source": "webship-workspace",
+   "status": "a",
+   "modified": "2026-11-26T01:04:08Z",
+   "role": "30",
+   "projectRole": ""
+  },
+  {
+   "id": 3,
+   "firstname": "Member",
+   "lastname": "Test",
+   "username": "member@example.com",
+   "notifications": 1,
+   "profileId": "",
+   "jobTitle": "",
+   "source": "webship-workspace",
+   "status": "a",
+   "modified": "2026-11-26T01:04:08Z",
+   "role": "20",
+   "projectRole": ""
+  },
+  {
+   "id": 4,
+   "firstname": "Commenter",
+   "lastname": "Test",
+   "username": "commenter@example.com",
+   "notifications": 1,
+   "profileId": "",
+   "jobTitle": "",
+   "source": "webship-workspace",
+   "status": "a",
+   "modified": "2026-11-26T01:04:08Z",
+   "role": "10",
+   "projectRole": ""
+  },
+  {
+   "id": 5,
+   "firstname": "Reader",
+   "lastname": "Test",
+   "username": "reader@example.com",
+   "notifications": 1,
+   "profileId": "",
+   "jobTitle": "",
+   "source": "webship-workspace",
+   "status": "a",
+   "modified": "2026-11-26T01:04:08Z",
+   "role": "5",
+   "projectRole": ""
+  },
+  {
+   "id": 1,
+   "firstname": "Webmaster",
+   "lastname": "Workspace",
+   "username": "webmaster@example.com",
+   "notifications": 1,
+   "profileId": "",
+   "jobTitle": null,
+   "source": null,
+   "status": "a",
+   "modified": "2026-11-26T01:04:07Z",
+   "role": "50",
+   "projectRole": ""
+  }
+ ],
+ "id": 1
+}

@@ -139,6 +139,10 @@ foreach ($verbs as $verb) {
         }
         setting("user.{$user['id']}.firstLoginCompleted", '1');
         say("installed: {$a['mail']} is the site's owner");
+        $empty = DB::table('zp_projects')->where('name', 'My Project')->value('id');
+        if ($empty && ! DB::table('zp_tickets')->where('projectId', $empty)->exists()) {
+            say("Leantime's own onboarding project, My Project, is empty on purpose: its installer fills it as a person, which a console run is not. The sample project is " . SAMPLE_PROJECT . '.');
+        }
     } elseif ($verb === 'defaults') {
         setting('companysettings.telemetry.optOut', 'true');
         say('defaults: no telemetry');

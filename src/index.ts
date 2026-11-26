@@ -1,4 +1,7 @@
 import type { PluginApi } from '@webship.co/workspace-plugin-api';
+import { registerTracker } from '@webship.co/workspace-tracker';
+
+import { leantimeTracker } from './lib/tracker';
 
 /** The platform this plugin builds sites of, as the core's tools and the dashboard name it. */
 export const PLATFORM = 'leantime';
@@ -24,5 +27,6 @@ export function assistantContext(): string {
 }
 
 export function register(api: PluginApi): void {
+  registerTracker(api, leantimeTracker(api));
   if (typeof api.addAssistantContext === 'function') api.addAssistantContext(assistantContext);
 }

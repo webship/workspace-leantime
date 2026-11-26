@@ -1,0 +1,33 @@
+{
+ "jsonrpc": "2.0",
+ "result": {
+  "id": 3,
+  "username": "member@example.com",
+  "firstname": "Member",
+  "lastname": "Test",
+  "phone": "",
+  "profileId": "",
+  "lastlogin": "2026-11-26 01:04:09",
+  "status": "a",
+  "expires": null,
+  "role": "20",
+  "wage": null,
+  "hours": null,
+  "weekly_hours": null,
+  "employment_type": null,
+  "description": null,
+  "clientId": 0,
+  "notifications": 1,
+  "forcePwReset": null,
+  "lastpwd_change": null,
+  "settings": null,
+  "twoFAEnabled": 0,
+  "createdOn": "2026-11-26 01:04:08",
+  "source": "webship-workspace",
+  "jobTitle": "",
+  "jobLevel": "",
+  "department": "",
+  "modified": "2026-11-26 01:04:08"
+ },
+ "id": 1
+}
