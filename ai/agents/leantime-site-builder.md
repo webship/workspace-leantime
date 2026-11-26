@@ -29,13 +29,18 @@ cd ~/workspace/sandboxes                      # or dev, test, demos
 bash cmd-leantime-project.sh mysite --install --add-users                    # a site with its accounts
 bash cmd-leantime-project.sh mysite --install --add-users --sample-content   # with the sample tasks and sprint
 bash cmd-leantime-project.sh myold --install --release 3.17.0
+bash cmd-leantime-project.sh mydocker --install --add-users --runtime docker  # or podman, kubernetes
 ```
 
 The site is Leantime's own image (`leantime/leantime`: its web server and PHP in one container) on the project's own
 MariaDB 11.4, installed by Leantime's own installer. On DDEV the image takes the project's address,
 `https://mysite.ddev.site`; the project's web container keeps the mail catcher at `https://mysite.ddev.site:8026`,
-where the site's mail goes. Docker Compose, Podman and Kubernetes are not proven for Leantime yet: the builder says
-so and stops before it changes anything.
+where the site's mail goes. On Docker Compose and Podman (`--runtime docker`, `podman`) the image is the web
+container's, run as the host user, its code moved to `/opt/leantime` (the stack mounts the project on
+`/var/www/html`), and the stack's Mailpit takes the mail; the site is at `http://127.0.0.1:<port>`. On Kubernetes
+(`--runtime kubernetes`, the workspace's kind cluster) it runs in the project's namespace, at the node's address and a
+NodePort. The database is MariaDB 11.4 on every runtime. Lando and Docksal are not proven for Leantime yet: the
+builder says so and stops before it changes anything.
 
 The builder asks for 1.5 GB of free memory (`free -m`) before it starts. The first build downloads about 320 MB for
 Leantime's image. Build one site at a time, and stop a site you are not using.
@@ -48,7 +53,7 @@ Leantime's image. Build one site at a time, and stop a site you are not using.
 | `--release <X.Y.Z>` | The release of the image: 3.17.0 by default |
 | `--api-limit <number>` | The calls of its API Leantime allows an account a minute: a dev and test setting, 1000 by default (Leantime's own is 120) |
 | `--login-limit <number>` | The logins Leantime allows from one address a minute: a dev and test setting, 100 by default (Leantime's own is 20) |
-| `--runtime ddev` | The container runtime: DDEV, the one proven for Leantime so far |
+| `--runtime ddev`, `docker`, `podman` or `kubernetes` | The container runtime: DDEV (the default), Docker Compose, Podman or Kubernetes (a kind cluster) |
 | `--launch` | Open the site when it is ready |
 
 A project of the same name is deleted first, with its database and its files. The site's own values (its session

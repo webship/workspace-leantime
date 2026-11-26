@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { spawnSync } from 'child_process';
 
 import { assistantContext, PLATFORM, COMMANDS, AGENTS, SKILLS, AI_COMMANDS, PROMPTS } from '../src/index';
@@ -37,9 +38,9 @@ test('the manifest names the platform, and every file it names ships', () => {
   // The machine files land side by side in core/scripts/plugins/leantime/: no two may share a name.
   const names = manifest.scripts.machine.map((f: string) => path.basename(f));
   assert.strictEqual(new Set(names).size, names.length, 'the machine files have names of their own');
-  assert.deepStrictEqual(names, ['docker-compose.leantime.yaml', 'leantime-site.php', 'site.feature']);
-  assert.deepStrictEqual(manifest.features, ['features/leantime.feature']);
-  assert.strictEqual(manifest.featuresSite, undefined, 'a site for the features needs a runtime CI has: Leantime is proven on DDEV only so far');
+  assert.deepStrictEqual(names, ['docker-compose.leantime.yaml', 'leantime-site.php', 'leantime-serve.sh', 'site.feature']);
+  assert.deepStrictEqual(manifest.features, ['features/leantime.feature', 'features/leantime-runtimes.feature']);
+  assert.strictEqual(manifest.featuresSite, 'cmd-leantime-project.sh ci-leantime --install --add-users --sample-content --runtime docker', 'CI builds a site on Docker Compose for the features');
   assert.deepStrictEqual(pkg.dependencies, { '@webship.co/workspace-tracker': '^1.0.2' });
   assert.ok(manifest.summary.length <= 110, 'the catalogue line shows at most 110 characters');
 });
@@ -73,7 +74,8 @@ test('the site script is PHP that parses', { skip: PHP ? false : 'no php on this
 });
 
 test('the site script runs with Leantime\'s own code, and each verb does what it says', () => {
-  assert.match(SITE, /^\$app = require_once '\/var\/www\/html\/bootstrap\/app\.php';$/m, 'Leantime\'s own application');
+  assert.match(SITE, /^\$root = is_file\('\/opt\/leantime\/bootstrap\/app\.php'\) \? '\/opt\/leantime' : '\/var\/www\/html';$/m, 'Leantime\'s code where it is: its own container on DDEV, the web container elsewhere');
+  assert.match(SITE, /^\$app = require_once \$root \. '\/bootstrap\/app\.php';$/m, 'Leantime\'s own application');
   assert.match(SITE, /^\$kernel->bootstrap\(\);$/m);
   for (const name of ['version', 'install', 'defaults', 'accounts', 'content', 'tidy', 'list', 'token', 'counts']) verb(name);
   // The installer is Leantime's own; what it cannot do from a console is said, and the first login is done.
@@ -115,17 +117,25 @@ test('tidy removes only what the default accounts left: their "Webship test …"
   assert.match(counts, /DB::table\('zp_tickethistory'\)->whereIn\('ticketId', \$ids\)/);
 });
 
-test('the runtimes: DDEV only for now; another is refused before anything is changed, and so is a machine with too little memory', () => {
-  assert.match(read('scripts/args/arg-leantime.sh'), /choices=\['ddev'\]/);
+test('the runtimes: DDEV, Docker Compose, Podman and Kubernetes; another is refused before anything is changed, and so is a machine with too little memory', () => {
+  assert.match(read('scripts/args/arg-leantime.sh'), /choices=\['ddev', 'docker', 'podman', 'kubernetes'\]/);
   const build = FUN.slice(FUN.indexOf('function leantime_build()'));
-  const guard = build.indexOf('if [ "${runtime}" != \'ddev\' ] ; then');
+  const guard = build.indexOf('case "${runtime}" in');
+  const serve = build.indexOf('declare -f rt_serve');
   const memory = build.indexOf('leantime_free_memory');
   assert.ok(guard > 0 && guard < build.indexOf('drop_database') && guard < build.indexOf('ddev config'), 'the runtime is asked first');
-  assert.ok(build.includes('Leantime builds on DDEV for now (--runtime ddev), not on ${runtime}: that runtime is not proven for it yet. Nothing was changed.'));
+  assert.match(build, /case "\$\{runtime\}" in\n\s+ddev\|docker\|podman\|kubernetes\) ;;/, 'the four runtimes the plugin was proven on');
+  assert.ok(build.includes('Leantime builds on DDEV, Docker Compose, Podman and Kubernetes for now (--runtime ddev, docker, podman or kubernetes), not on ${runtime}: that runtime is not proven for it yet. Nothing was changed.'));
+  assert.ok(serve > guard && serve < build.indexOf('drop_database'), 'a workspace whose runtimes serve no application of its own is told so before anything is removed');
   assert.ok(memory > 0 && memory < build.indexOf('drop_database'), 'the free memory is asked before anything is removed');
   assert.match(FUN, /^readonly LEANTIME_MEMORY_MB=1536;$/m, 'the builder asks for 1.5 GB free');
-  assert.match(build, /ddev config --project-type=generic --project-name=\$\{PROJECT_NAME\} --database=mariadb:11\.4 \\\n\s+--nodejs-version=\$\(ddev_nodejs_version\)/, 'a generic project on MariaDB 11.4, with the workspace\'s Node.js');
+  assert.match(FUN, /^readonly LEANTIME_DATABASE='mariadb:11\.4';$/m);
+  assert.match(build, /ddev config --project-type=generic --project-name=\$\{PROJECT_NAME\} --database=\$\{LEANTIME_DATABASE\} \\\n\s+--nodejs-version=\$\(ddev_nodejs_version\)/, 'on DDEV a generic project on MariaDB 11.4, with the workspace\'s Node.js');
+  assert.match(build, /ddev config --project-type=generic --webserver-type=generic --project-name=\$\{PROJECT_NAME\} --database=\$\{LEANTIME_DATABASE\} --auto/, 'elsewhere the runtime\'s own project, on the same database');
   assert.doesNotMatch(FUN, /--database=mysql/, 'MariaDB, the database of every runtime the workspace has');
+  assert.ok(build.indexOf('base_url="$(leantime_url)"') > build.indexOf('leantime_write_config'), 'the address is read once the runtime has given the project its port');
+  const tool = FUN.slice(FUN.indexOf('function leantime_cli_tool()'), FUN.indexOf('function testing_configure_leantime()'));
+  assert.match(tool, /case "\$\(leantime_probe\)" in\n\s+200\|302\|303\) ;;\n\s+\*\) ddev start < \/dev\/null > \/dev\/null 2>&1 \|\| ddev start -y < \/dev\/null \|\| exit 1 ;;/, 'the tool starts a site that does not answer, and leaves one that does (webship/workspace#906)');
   assert.match(read('README.md'), /Leantime supports MySQL 8\.0\+ or MariaDB 10\.6\+ \(its own README\); the Workspace uses\nMariaDB 11\.4/, 'the README says which database, and why');
   assert.ok(build.indexOf('leantime_site install defaults') > build.indexOf('leantime_wait'), 'Leantime is installed once it answers');
   assert.ok(build.indexOf('"$(leantime_probe)" != \'200\'') > build.indexOf('leantime_site install defaults'), 'then the builder checks a visitor gets the login form');
@@ -150,10 +160,12 @@ test('Leantime\'s service on DDEV: its own image at the project\'s address, on t
   // The site's values: the address, the project's database, the mail catcher, its own session key, no telemetry.
   const env = FUN.slice(FUN.indexOf('function leantime_write_env()'), FUN.indexOf('function leantime_exec()'));
   for (const line of ['LEAN_APP_URL=${base_url}', 'LEAN_DB_HOST=db', 'LEAN_DB_DATABASE=db', 'LEAN_SESSION_PASSWORD=$(leantime_secret 64)', 'LEAN_SESSION_SECURE=${secure}',
-    'LEAN_ALLOW_TELEMETRY=false', 'LEAN_EMAIL_SMTP_HOSTS=web', 'LEAN_EMAIL_SMTP_PORT=1025', 'LEAN_RATELIMIT_API=${api_limit}', 'LEAN_RATELIMIT_AUTH=${login_limit}']) {
+    'LEAN_ALLOW_TELEMETRY=false', 'LEAN_EMAIL_SMTP_HOSTS=${mail}', 'LEAN_EMAIL_SMTP_PORT=1025', 'LEAN_RATELIMIT_API=${api_limit}', 'LEAN_RATELIMIT_AUTH=${login_limit}']) {
     assert.ok(env.split('\n').includes(line), line);
   }
   assert.match(env, /\( umask 077 && cat > "\$\{project_path\}\/\$\{LEANTIME_FILES\}\/env"/, 'leantime/env is its owner\'s only');
+  assert.match(env, /local secure='false' mail='web' ;/, 'the mail catcher of DDEV\'s web container, unless another runtime has its own');
+  assert.match(env, /\[ "\$\{runtime\}" != 'ddev' \] && mail='mail' ;/);
 });
 
 test('a test site allows the calls and logins a suite makes, by a setting of its own; a connected Leantime keeps its own', () => {
@@ -198,6 +210,8 @@ test('the assistant is told how to build, test and connect a site', () => {
   for (const c of COMMANDS) assert.ok(told.includes(c), `the assistant is told about ${c}`);
   for (const a of AGENTS) assert.ok(told.includes(a), `the assistant is told about ${a}`);
   assert.match(told, /1\.5 GB of free memory/);
+  assert.match(told, /--runtime docker/);
+  assert.match(told, /--runtime kubernetes/);
   assert.match(told, /--connect <login>/);
   assert.match(told, /My Project, stays empty/);
   assert.match(told, /Time Tracking/);
@@ -216,4 +230,86 @@ test('the docs say container-based, name only what ships, and carry no personal 
   const keys = [...read('config/plugin.leantime.settings.yml').matchAll(/^([a-z_]+):/gm)].map((m) => m[1]);
   assert.ok(keys.length >= 12);
   for (const k of keys) assert.ok(read('README.md').includes(`\`${k}\``), `the README describes the setting ${k}`);
+});
+
+/** What the builder writes for a project, with the runtime layer's calls stood in: the calls, the project. */
+function written(runtime: string, address: string): { calls: string, dir: string, read: (f: string) => string } {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'leantime-runtimes-'));
+  const plugin = path.join(dir, 'scripts', 'plugins', 'leantime');
+  fs.mkdirSync(plugin, { recursive: true });
+  for (const f of manifest.scripts.machine) fs.copyFileSync(path.join(PKG, f), path.join(plugin, path.basename(f)));
+  const project = path.join(dir, 'mysite');
+  fs.mkdirSync(path.join(project, '.ddev'), { recursive: true });
+  const stand = [
+    'rt_claim() { echo "rt_claim $*" >> "$LOG" ; }',
+    'rt_stack() { echo "rt_stack $*" >> "$LOG" ; }',
+    'rt_web_build() { echo "rt_web_build $*" >> "$LOG" ; cat > "$LOG.dockerfile" ; }',
+    'rt_serve() { echo "rt_serve $1 [$2]" >> "$LOG" ; }',
+  ].join('\n');
+  const script = `${stand}\nsource "${path.join(PKG, 'scripts/functions/fun-leantime.sh')}"\nleantime_write_config "${project}" 3.17.0 ${runtime} && leantime_write_env "${project}" 3.17.0 "${address}" 1000 100 ${runtime}`;
+  const r = spawnSync('bash', ['-c', script], { encoding: 'utf8', env: { ...process.env, WORKSPACE_SCRIPTS: path.join(dir, 'scripts'), LOG: path.join(dir, 'calls.log') } });
+  assert.strictEqual(r.status, 0, r.stdout + r.stderr);
+  const log = path.join(dir, 'calls.log');
+  return { calls: fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : '', dir, read: (f: string) => fs.readFileSync(path.join(project, f), 'utf8') };
+}
+
+/** Remove a folder of this file's tests, never a path outside one. */
+function removeTestDir(dir: string): void {
+  const parts = path.relative(os.tmpdir(), path.resolve(dir)).split(path.sep);
+  assert.ok(parts.length === 1 && /^leantime-runtimes-[A-Za-z0-9]{6}$/.test(parts[0]), `refused to remove ${dir}`);
+  fs.rmSync(dir, { recursive: true, force: true });
+}
+
+test('on Docker Compose, Podman and Kubernetes: Leantime\'s image as the web container\'s, its code out of the project\'s mount, run as the host user', () => {
+  for (const runtime of ['docker', 'podman', 'kubernetes']) {
+    const w = written(runtime, 'http://127.0.0.1:33001');
+    try {
+      assert.deepStrictEqual(w.calls.trim().split('\n'), [
+        'rt_claim leantime',
+        'rt_stack image docker.io/leantime/leantime:3.17.0',
+        'rt_web_build leantime',
+        'rt_serve 8080 [bash leantime/leantime-serve.sh]',
+      ], runtime);
+      const fragment = fs.readFileSync(path.join(w.dir, 'calls.log.dockerfile'), 'utf8');
+      assert.match(fragment, /^ENTRYPOINT \["\/sbin\/tini", "--"\]$/m, 'tini stays first; the image\'s own start runs from serve, as the host user');
+      assert.match(fragment, /cp -a \/var\/www\/html\/\. \/opt\/leantime\//, 'the code out of the folder the stack mounts the project on');
+      assert.match(fragment, /sed -i 's#\/var\/www\/html#\/opt\/leantime#g' \/etc\/nginx\/nginx\.conf \/etc\/supervisor\/conf\.d\/supervisord\.conf \/usr\/local\/etc\/php-fpm\.d\/www\.conf/);
+      assert.match(fragment, /if grep -rqs '\/var\/www\/html' \/etc\/nginx \/etc\/supervisor \/usr\/local\/etc\/php-fpm\.d ; then echo "[^"]+" >&2 ; exit 1 ; fi/, 'a release that names the old folder elsewhere stops the build, saying why');
+      for (const [link, to] of [['userfiles', 'userfiles'], ['public/userfiles', 'public-userfiles'], ['app/Plugins', 'plugins']]) {
+        assert.ok(fragment.includes(`ln -s /var/www/html/leantime/files/${to} /opt/leantime/${link}`), `${link} is kept in the project`);
+      }
+      assert.match(fragment, /chown -R www-data:www-data \/opt\/leantime\/storage \/opt\/leantime\/bootstrap\/cache \/run \/var\/lib\/nginx \/var\/log\/nginx$/m, 'what Leantime writes is the host user\'s');
+      assert.doesNotMatch(fragment, /chown -R www-data:www-data \/opt\/leantime( |$)/m, 'never the whole code');
+      const env = w.read('leantime/env').split('\n');
+      for (const line of ['LEAN_APP_URL=http://127.0.0.1:33001', 'LEAN_SESSION_SECURE=false', 'LEAN_DB_HOST=db', 'LEAN_EMAIL_SMTP_HOSTS=mail', 'LEAN_RATELIMIT_API=1000', 'LEAN_RATELIMIT_AUTH=100']) {
+        assert.ok(env.includes(line), `${runtime}: ${line}`);
+      }
+      assert.strictEqual(fs.statSync(path.join(w.dir, 'mysite', 'leantime', 'env')).mode & 0o777, 0o600, `${runtime}: leantime/env is its owner's only`);
+      for (const f of ['leantime-site.php', 'leantime-serve.sh']) assert.ok(fs.existsSync(path.join(w.dir, 'mysite', 'leantime', f)), `${runtime}: leantime/${f}`);
+      assert.ok(!fs.existsSync(path.join(w.dir, 'mysite', '.ddev', 'docker-compose.leantime.yaml')), `${runtime}: no DDEV service`);
+    } finally {
+      removeTestDir(w.dir);
+    }
+  }
+  // On DDEV the site's values are what they were: its own address, its mail catcher in the web container.
+  const d = written('ddev', 'https://mysite.ddev.site');
+  try {
+    assert.strictEqual(d.calls, '', 'no call of the runtime layer on DDEV');
+    const env = d.read('leantime/env').split('\n');
+    for (const line of ['LEAN_APP_URL=https://mysite.ddev.site', 'LEAN_SESSION_SECURE=true', 'LEAN_EMAIL_SMTP_HOSTS=web']) assert.ok(env.includes(line), line);
+    assert.ok(fs.existsSync(path.join(d.dir, 'mysite', '.ddev', 'docker-compose.leantime.yaml')));
+  } finally {
+    removeTestDir(d.dir);
+  }
+});
+
+test('the server on the other runtimes: the site\'s values, the project\'s folders for Leantime\'s files, then the image\'s own start', () => {
+  const serve = read('scripts/leantime-serve.sh');
+  assert.match(serve, /^set -a\n# shellcheck disable=SC1091\n\. "\$\{here\}\/env" \|\| exit 1\nset \+a$/m, 'the site\'s values in its environment');
+  assert.match(serve, /^mkdir -p "\$\{here\}\/files\/userfiles" "\$\{here\}\/files\/public-userfiles" "\$\{here\}\/files\/plugins" \|\| exit 1$/m);
+  assert.match(serve, /^exec \/start\.sh$/m, 'then the image\'s own start: supervisord, nginx, PHP-FPM and the scheduler');
+  const r = spawnSync('bash', ['-n', path.join(PKG, 'scripts/leantime-serve.sh')], { encoding: 'utf8' });
+  assert.strictEqual(r.status, 0, r.stderr);
+  assert.match(FUN, /ddev exec "set -a ; \. \/var\/www\/html\/\$\{LEANTIME_FILES\}\/env ; set \+a ; cd \$\{LEANTIME_CODE\} && \$\{1\}"/, 'elsewhere Leantime\'s commands run in the web container, with the site\'s values');
+  assert.match(FUN, /if \[ "\$\(leantime_runtime\)" = 'ddev' \] ; then echo 'http:\/\/leantime:8080' ; else echo "http:\/\/127\.0\.0\.1:\$\{LEANTIME_SERVE_PORT\}" ; fi/, 'Leantime asked where it answers');
 });
