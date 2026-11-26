@@ -24,6 +24,14 @@ parser.add_argument('-v', '--release',
                     dest='LEANTIME_VERSION',
                     default="",
                     help='The release of the site (a tag of Leantime\'s image): 3.17.0 by default. Example: --release 3.17.0')
+parser.add_argument('--api-limit',
+                    dest='API_LIMIT',
+                    default="",
+                    help='How many calls of its API a minute Leantime allows an account from one address on this site: a dev and test setting, 1000 by default so a test suite can read as often as it needs; Leantime\'s own default is 120. Example: --api-limit 120')
+parser.add_argument('--login-limit',
+                    dest='LOGIN_LIMIT',
+                    default="",
+                    help='How many logins a minute Leantime allows from one address on this site: a dev and test setting, 100 by default; Leantime\'s own default is 20. Example: --login-limit 20')
 parser.add_argument('-l', '--launch',
                     action='store_true',
                     default=False,

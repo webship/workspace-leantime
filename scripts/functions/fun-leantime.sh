@@ -36,6 +36,14 @@ readonly LEANTIME_FILES='leantime';
 # The free memory a build asks for, in MB: Leantime's web server and PHP, beside MySQL.
 readonly LEANTIME_MEMORY_MB=1536;
 
+# How many calls of its API (a minute, for an account from one address) and how many logins (a minute, from one address)
+# Leantime allows on a site the builder makes (--api-limit and --login-limit, or site_leantime_api_limit and
+# site_leantime_login_limit of the folder's settings): a dev and test setting. Leantime's own defaults are 120 and 20;
+# a test suite reads and logs in more often than a person. A Leantime the dashboard is connected to with --connect
+# keeps its own: nothing here touches it.
+readonly LEANTIME_API_LIMIT=1000;
+readonly LEANTIME_LOGIN_LIMIT=100;
+
 # The default accounts, the ones a scenario logs in as, each in a role of Leantime's: a Company Manager (owner), an
 # Editor (member), a Commenter (commenter), a Read Only person (reader), all members of the sample project, and an
 # Editor with no membership (stranger), whom the project is refused. Leantime logs in by e-mail address. Accounts are
@@ -145,7 +153,7 @@ YAMLEOF
 # The site's own values (leantime/env, which only you can read): the address, the project's database, the mail
 # catcher, and its session key, of this site only.
 function leantime_write_env() {
-  local project_path="$1" release="$2" base_url="$3" ;
+  local project_path="$1" release="$2" base_url="$3" api_limit="${4:-${LEANTIME_API_LIMIT}}" login_limit="${5:-${LEANTIME_LOGIN_LIMIT}}" ;
   local secure='false' ;
   [[ "${base_url}" == https://* ]] && secure='true' ;
   ( umask 077 && cat > "${project_path}/${LEANTIME_FILES}/env" <<ENVEOF
@@ -170,6 +178,10 @@ LEAN_EMAIL_SMTP_HOSTS=web
 LEAN_EMAIL_SMTP_PORT=1025
 LEAN_EMAIL_SMTP_AUTH=false
 LEAN_EMAIL_SMTP_AUTO_TLS=false
+# The calls of the API a minute for an account, and the logins a minute from one address (--api-limit, --login-limit):
+# a dev and test setting, as a test suite reads and logs in more often than a person; Leantime's own are 120 and 20.
+LEAN_RATELIMIT_API=${api_limit}
+LEAN_RATELIMIT_AUTH=${login_limit}
 ENVEOF
   ) ;
 }
@@ -246,6 +258,8 @@ function leantime_build() {
   trim_project_name ;
   local release="${LEANTIME_VERSION:-${site_leantime_release:-${LEANTIME_DEFAULT_RELEASE}}}" ;
   release="${release#v}" ;
+  local api_limit="${API_LIMIT:-${site_leantime_api_limit:-${LEANTIME_API_LIMIT}}}" ;
+  local login_limit="${LOGIN_LIMIT:-${site_leantime_login_limit:-${LEANTIME_LOGIN_LIMIT}}}" ;
   local project_path="${WORKSPACE_ROOT}/${doc_name}/${PROJECT_NAME}" ;
   local runtime ; runtime="$(cd "${WORKSPACE_ROOT}/${doc_name}" && leantime_runtime)" ;
 
@@ -255,6 +269,10 @@ function leantime_build() {
   fi
   if ! [[ "${release}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ; then
     echo "--release takes a release of Leantime (3.17.0), not ${release}. Nothing was changed." ;
+    exit 1 ;
+  fi
+  if ! [[ "${api_limit}" =~ ^[1-9][0-9]{0,5}$ ]] || ! [[ "${login_limit}" =~ ^[1-9][0-9]{0,5}$ ]] ; then
+    echo "--api-limit and --login-limit take a number a minute (1000, 100), not ${api_limit} and ${login_limit}. Nothing was changed." ;
     exit 1 ;
   fi
   if [ "${ADD_USERS}" == 'yes' ] && [ "${INSTALL}" != 'yes' ] ; then
@@ -292,9 +310,9 @@ function leantime_build() {
     --nodejs-version=$(ddev_nodejs_version) < /dev/null || exit 1 ;
   leantime_write_config "${project_path}" "${release}" || exit 1 ;
   local base_url ; base_url="$(leantime_url)" ;
-  leantime_write_env "${project_path}" "${release}" "${base_url}" || exit 1 ;
+  leantime_write_env "${project_path}" "${release}" "${base_url}" "${api_limit}" "${login_limit}" || exit 1 ;
 
-  echo "Starting the project and Leantime ${release}: its image is about 320 MB the first time." ;
+  echo "Starting the project and Leantime ${release}: its image is a download of about 320 MB the first time." ;
   ddev_up start -y < /dev/null || exit 1 ;
   leantime_wait || exit 1 ;
 
@@ -431,7 +449,8 @@ function leantime_cli_tool() {
   elif [ "${SAMPLE_CONTENT}" == 'yes' ] ; then
     leantime_site content list < /dev/null ;
   elif [ "${TIDY}" == 'yes' ] ; then
-    # What a test run that was stopped half way left: its tasks ("Webship test …"), with their comments.
+    # What a test run that was stopped half way left: its tasks ("Webship test …"), with their comments, logged time
+    # and history; and what Leantime keeps of the tasks a run removed.
     leantime_site tidy list < /dev/null ;
   elif [ "${CONNECT}" != '_none_' ] ; then
     leantime_connect "${CONNECT}" ;
@@ -521,7 +540,7 @@ pad = world.group(1) + '  '
 additions = []
 if not re.search(r"^[ \t]*manager:", src, re.M):
     additions += [
-        pad + "// The account that prepares and removes test content through the site's API: an Admin of the project.",
+        pad + "// The account that prepares and removes test content through the site's API: a Company Manager of the project.",
         pad + "manager: process.env.MANAGER || 'owner',",
     ]
 if not re.search(r"^[ \t]*project:", src, re.M):

@@ -7,13 +7,15 @@
  *
  * Verbs, run in the order given:
  *   version   the release the site runs (VERSION <release>)
- *   install   Leantime's own installer (db:install) with the account on the input, once; its first login done
+ *   install   Leantime's own installer (its console's db:migrate) with the account on the input, once; its first
+ *             login done; Leantime's onboarding project stays empty, which it says
  *   defaults  the site's settings: no telemetry
  *   accounts  the default accounts on the input: made or given back their names, roles and passwords, their first
  *             login done, members of the sample project in their roles; or kept from logging in ("lock")
  *   content   the sample content, made as its authors: the sample project's sprint, its tasks, comments and time
  *   tidy      what a stopped test run left: tasks titled "Webship test …" made by the default accounts in the sample
- *             project, with their comments, history and logged time
+ *             project, with their comments, history and logged time; and what the default accounts left on tasks that
+ *             are gone, which Leantime's own delete of a task keeps (comments, logged time, history)
  *   list      the accounts, and what the sample project holds
  *   token     a new bearer token of the account on the input (TOKEN <token>); its earlier one is revoked
  *   counts    what the sample project holds, one count a line
@@ -268,6 +270,14 @@ foreach ($verbs as $verb) {
             DB::table('zp_tickets')->where('id', $id)->delete();
         }
         say('tidy: ' . count($left) . ' task(s) of a stopped test run removed');
+        // Leantime's own delete of a task keeps its comments, its logged time and its history in the database, out of
+        // every screen and every answer of its API: the rows of the default accounts on a task that is gone go too.
+        $gone = fn (string $table, string $column) => DB::table($table)->whereIn('userId', $authors)
+            ->whereNotIn($column, DB::table('zp_tickets')->select('id'));
+        $rows = $gone('zp_comment', 'moduleId')->where('module', 'ticket')->delete()
+            + $gone('zp_timesheets', 'ticketId')->delete()
+            + $gone('zp_tickethistory', 'ticketId')->delete();
+        say("tidy: {$rows} row(s) the default accounts left on removed tasks (comments, logged time, history) removed");
     } elseif ($verb === 'list') {
         $project = sample_project();
         say('Accounts:');

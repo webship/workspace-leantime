@@ -62,16 +62,30 @@
       ],
       "machine": [
         "scripts/docker-compose.leantime.yaml",
-        "scripts/leantime-site.php"
+        "scripts/leantime-site.php",
+        "testing/site.feature"
       ]
     },
     "ai": {
-      "agents": [],
-      "skills": [],
-      "commands": [],
-      "prompts": []
+      "agents": [
+        "ai/agents/leantime-site-builder.md",
+        "ai/agents/leantime-tester.md",
+        "ai/agents/leantime-issue-worker.md"
+      ],
+      "skills": [
+        "ai/skills/leantime-scenarios"
+      ],
+      "commands": [
+        "ai/commands/leantime-test.md"
+      ],
+      "prompts": [
+        "ai/prompts/leantime-build-and-test.md",
+        "ai/prompts/leantime-issue-to-branch.md"
+      ]
     },
-    "features": []
+    "features": [
+      "features/leantime.feature"
+    ]
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
