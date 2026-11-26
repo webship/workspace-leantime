@@ -23,9 +23,8 @@ Feature: A Leantime site on Docker Compose, Podman and Kubernetes
      Then the open menu should offer "Add the test users"
       And the open menu should offer "Cancel the test users"
 
-  # A visitor is sent to the login form; the page's own requests for a visitor may be refused, which the browser logs:
-  # @js-off.
-  @needs-runtime-docker @needs-platform-leantime @js-off
+  # A visitor is sent to the login form, and the page logs nothing: the browser's log is read as on any page.
+  @needs-runtime-docker @needs-platform-leantime
   Scenario: The site on Docker Compose is set up: its login form
     Given I am on the folder of the "docker" site
      When I open "/" on the "docker" site
@@ -47,7 +46,7 @@ Feature: A Leantime site on Docker Compose, Podman and Kubernetes
      Then the open menu should offer "Add the test users"
       And the open menu should offer "Cancel the test users"
 
-  @needs-runtime-podman @needs-platform-leantime @js-off
+  @needs-runtime-podman @needs-platform-leantime
   Scenario: The site on Podman is set up: its login form
     Given I am on the folder of the "podman" site
      When I open "/" on the "podman" site
@@ -69,7 +68,7 @@ Feature: A Leantime site on Docker Compose, Podman and Kubernetes
      Then the open menu should offer "Add the test users"
       And the open menu should offer "Cancel the test users"
 
-  @needs-runtime-kubernetes @needs-platform-leantime @js-off
+  @needs-runtime-kubernetes @needs-platform-leantime
   Scenario: The site on Kubernetes is set up: its login form
     Given I am on the folder of the "kubernetes" site
      When I open "/" on the "kubernetes" site
