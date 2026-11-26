@@ -68,7 +68,9 @@ A project of the same name is deleted first, with its database and its files.
   web image moves the code to `/opt/leantime` and points nginx, PHP-FPM and the scheduler there (a release that names
   the old folder in another setting stops the build, saying why). The files Leantime keeps beside its database
   (uploads and plugins) live in the project's `leantime/files`, and what it writes while it runs belongs to the host
-  user. `leantime-serve.sh` puts the site's values into the environment and runs the image's own start.
+  user. `leantime-serve.sh` puts the site's values into the environment and runs the image's own start, its output
+  through a pipe of the host user's: supervisord, nginx and PHP-FPM open `/dev/stdout` by its name, which the host
+  user cannot open again when the container's own output belongs to root.
 - **On Kubernetes** (the workspace's kind cluster) the web pod runs the same image, the project's folder mounted from
   the host; the site is at the node's address and a NodePort.
 - Lando and Docksal are not proven for Leantime yet: asked for one, the builder says so and changes nothing.

@@ -10,4 +10,8 @@ set -a
 . "${here}/env" || exit 1
 set +a
 mkdir -p "${here}/files/userfiles" "${here}/files/public-userfiles" "${here}/files/plugins" || exit 1
+# Leantime's own start opens /dev/stdout and /dev/stderr by their names (supervisord, nginx, PHP-FPM), which the host
+# user cannot open again when the container's own output belongs to root (the stack starts this through runuser):
+# they become a pipe of this user's, which copies to the container's output.
+exec > >(cat) 2>&1
 exec /start.sh

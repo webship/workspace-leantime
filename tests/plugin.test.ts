@@ -307,7 +307,7 @@ test('the server on the other runtimes: the site\'s values, the project\'s folde
   const serve = read('scripts/leantime-serve.sh');
   assert.match(serve, /^set -a\n# shellcheck disable=SC1091\n\. "\$\{here\}\/env" \|\| exit 1\nset \+a$/m, 'the site\'s values in its environment');
   assert.match(serve, /^mkdir -p "\$\{here\}\/files\/userfiles" "\$\{here\}\/files\/public-userfiles" "\$\{here\}\/files\/plugins" \|\| exit 1$/m);
-  assert.match(serve, /^exec \/start\.sh$/m, 'then the image\'s own start: supervisord, nginx, PHP-FPM and the scheduler');
+  assert.match(serve, /^exec > >\(cat\) 2>&1\nexec \/start\.sh$/m, 'the output a pipe of the host user\'s (the start opens /dev/stdout by its name), then the image\'s own start: supervisord, nginx, PHP-FPM and the scheduler');
   const r = spawnSync('bash', ['-n', path.join(PKG, 'scripts/leantime-serve.sh')], { encoding: 'utf8' });
   assert.strictEqual(r.status, 0, r.stderr);
   assert.match(FUN, /ddev exec "set -a ; \. \/var\/www\/html\/\$\{LEANTIME_FILES\}\/env ; set \+a ; cd \$\{LEANTIME_CODE\} && \$\{1\}"/, 'elsewhere Leantime\'s commands run in the web container, with the site\'s values');
