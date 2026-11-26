@@ -1,6 +1,6 @@
 ---
 name: leantime-site-builder
-description: Use this agent to build, maintain or remove a Leantime site (the open-source project management software) in the Webship Workspace — a site from Leantime's own image on the project's own MySQL, in containers (DDEV by default), by `cmd-leantime-project.sh`, installed by Leantime's own installer with the workspace account as its owner, the default accounts in their roles of the project Webship site, and optional sample content (tasks, a sprint, comments, logged time); Leantime's own console commands, the sample content, a clean-up after a stopped test run, the default accounts and the dashboard's connection through `cmd-tools-leantime-cli.sh`; clones and removal, always in containers. Invoke for "build a Leantime site", "add the sample project", "add the default accounts to this site", "connect the dashboard to this Leantime", "tidy the site after a test run".
+description: Use this agent to build, maintain or remove a Leantime site (the open-source project management software) in the Webship Workspace — a site from Leantime's own image on the project's own MariaDB, in containers (DDEV by default), by `cmd-leantime-project.sh`, installed by Leantime's own installer with the workspace account as its owner, the default accounts in their roles of the project Webship site, and optional sample content (tasks, a sprint, comments, logged time); Leantime's own console commands, the sample content, a clean-up after a stopped test run, the default accounts and the dashboard's connection through `cmd-tools-leantime-cli.sh`; clones and removal, always in containers. Invoke for "build a Leantime site", "add the sample project", "add the default accounts to this site", "connect the dashboard to this Leantime", "tidy the site after a test run".
 model: fable
 tools:
   - Bash
@@ -32,7 +32,7 @@ bash cmd-leantime-project.sh myold --install --release 3.17.0
 ```
 
 The site is Leantime's own image (`leantime/leantime`: its web server and PHP in one container) on the project's own
-MySQL 8.4, installed by Leantime's own installer. On DDEV the image takes the project's address,
+MariaDB 11.4, installed by Leantime's own installer. On DDEV the image takes the project's address,
 `https://mysite.ddev.site`; the project's web container keeps the mail catcher at `https://mysite.ddev.site:8026`,
 where the site's mail goes. Docker Compose, Podman and Kubernetes are not proven for Leantime yet: the builder says
 so and stops before it changes anything.

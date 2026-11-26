@@ -1,4 +1,4 @@
-# Leantime of this project: Leantime's own image (its web server and PHP) on the project's own MySQL (the container
+# Leantime of this project: Leantime's own image (its web server and PHP) on the project's own MariaDB (the container
 # tool's db service), served at the project's address; the project's web container keeps the mail catcher. Written by
 # the Leantime builder of the workspace (the plugin's docker-compose.leantime.yaml); build again rather than editing by
 # hand. The site's own values (its session key) are in leantime/env, which only you can read.

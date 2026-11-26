@@ -6,7 +6,7 @@
 #
 # Placed by `plugins.sh --install leantime` in core/scripts/plugins/leantime/functions/, where bootstrap sources it
 # after the core's own functions. Everything runs in containers, never on the host:
-#   - DDEV (the default): Leantime's image is a service of a generic project, on the project's own MySQL (the db
+#   - DDEV (the default): Leantime's image is a service of a generic project, on the project's own MariaDB (the db
 #     service), at https://<name>.ddev.site; the project's web container keeps the mail catcher.
 # Docker Compose, Podman, Kubernetes, Lando and Docksal are not proven yet: asked for one, the builder says so and
 # changes nothing.
@@ -33,7 +33,7 @@ readonly LEANTIME_DEFAULT_RELEASE='3.17.0';
 readonly LEANTIME_PROJECT_NAME='Webship site';
 readonly LEANTIME_FILES='leantime';
 
-# The free memory a build asks for, in MB: Leantime's web server and PHP, beside MySQL.
+# The free memory a build asks for, in MB: Leantime's web server and PHP, beside MariaDB.
 readonly LEANTIME_MEMORY_MB=1536;
 
 # How many calls of its API (a minute, for an account from one address) and how many logins (a minute, from one address)
@@ -293,7 +293,7 @@ function leantime_build() {
   fi
   local free ; free="$(leantime_free_memory)" ;
   if [ -n "${free}" ] && [ "${free}" -lt "${LEANTIME_MEMORY_MB}" ] ; then
-    echo "Leantime needs about ${LEANTIME_MEMORY_MB} MB of free memory (its web server and PHP, and MySQL); this machine has ${free} MB available now. Stop a site you do not need, then build again. Nothing was changed." ;
+    echo "Leantime needs about ${LEANTIME_MEMORY_MB} MB of free memory (its web server and PHP, and MariaDB); this machine has ${free} MB available now. Stop a site you do not need, then build again. Nothing was changed." ;
     exit 1 ;
   fi
 
@@ -305,8 +305,9 @@ function leantime_build() {
   mkdir -p "${PROJECT_NAME}" ;
   cd "${project_path}" || exit 1 ;
 
-  # A generic project on MySQL 8.4, the release Leantime's own compose file runs.
-  ddev config --project-type=generic --project-name=${PROJECT_NAME} --database=mysql:8.4 \
+  # A generic project on MariaDB 11.4: Leantime supports MySQL 8.0+ or MariaDB 10.6+, and the Workspace uses MariaDB,
+  # so a site's database is the same on every runtime.
+  ddev config --project-type=generic --project-name=${PROJECT_NAME} --database=mariadb:11.4 \
     --nodejs-version=$(ddev_nodejs_version) < /dev/null || exit 1 ;
   leantime_write_config "${project_path}" "${release}" || exit 1 ;
   local base_url ; base_url="$(leantime_url)" ;

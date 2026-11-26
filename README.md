@@ -3,7 +3,7 @@
 Leantime, the open-source project management software, for the [Webship Workspace](https://github.com/webship/workspace),
 a container-based workspace (DDEV by default). The plugin brings:
 
-- **a builder**, `cmd-leantime-project.sh`: a real Leantime site from Leantime's own image on the project's own MySQL,
+- **a builder**, `cmd-leantime-project.sh`: a real Leantime site from Leantime's own image on the project's own MariaDB,
   on DDEV, installed by Leantime's own installer, its default accounts in their roles of a sample project, and its
   tasks, sprint, comments and logged time;
 - **a tool**, `cmd-tools-leantime-cli.sh`: what a site is and its accounts, Leantime's own console commands in its
@@ -56,13 +56,16 @@ bash cmd-leantime-project.sh mysite --install --add-users --sample-content
 
 A project of the same name is deleted first, with its database and its files. Leantime's own image
 (`leantime/leantime`: its web server and PHP in one container) is a service of a generic project, on the project's
-MySQL 8.4, at `https://mysite.ddev.site`. The project's web container keeps the mail catcher, at
+MariaDB 11.4, at `https://mysite.ddev.site`. The project's web container keeps the mail catcher, at
 `https://mysite.ddev.site:8026`, where the site's mail goes. What Leantime keeps beside its database (its files, its
 plugins, its logs) is in volumes named after the project: removing the project removes them with it.
 
 | Image | What it is | Source and licence |
 | --- | --- | --- |
 | `docker.io/leantime/leantime:3.17.0` | Leantime: its web server and PHP (`--release` picks another tag) | [Leantime/leantime](https://github.com/Leantime/leantime), AGPL-3.0 |
+
+**The database is MariaDB.** Leantime supports MySQL 8.0+ or MariaDB 10.6+ (its own README); the Workspace uses
+MariaDB 11.4, so a site's database is the same on every runtime the Workspace has.
 
 The install is Leantime's own: its console installer makes the database and the workspace account as the site's
 owner, with no telemetry. **Leantime's own onboarding project, "My Project", is empty on purpose.** Its installer fills

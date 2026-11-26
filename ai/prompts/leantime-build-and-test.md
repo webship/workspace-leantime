@@ -13,7 +13,7 @@ Build the Leantime site named <name> with its default accounts and the sample pr
 # a pull request of this work: its Checkpoints list last; "Reviewed by a human" and "Code review by maintainers" are never ticked by an agent
 
 1. bash cmd-leantime-project.sh <name> --install --add-users --sample-content
-   (Leantime's own image on the project's own MySQL, installed by its own installer, the workspace account as the site's owner, the default accounts in their roles of the project Webship site)
+   (Leantime's own image on the project's own MariaDB, installed by its own installer, the workspace account as the site's owner, the default accounts in their roles of the project Webship site)
 2. bash cmd-tools-leantime-cli.sh <name>
    tell me what the site is, its release, its address and the accounts it lists
 3. bash cmd-tools-testing.sh <name>

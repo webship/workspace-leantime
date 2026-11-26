@@ -124,7 +124,9 @@ test('the runtimes: DDEV only for now; another is refused before anything is cha
   assert.ok(build.includes('Leantime builds on DDEV for now (--runtime ddev), not on ${runtime}: that runtime is not proven for it yet. Nothing was changed.'));
   assert.ok(memory > 0 && memory < build.indexOf('drop_database'), 'the free memory is asked before anything is removed');
   assert.match(FUN, /^readonly LEANTIME_MEMORY_MB=1536;$/m, 'the builder asks for 1.5 GB free');
-  assert.match(build, /ddev config --project-type=generic --project-name=\$\{PROJECT_NAME\} --database=mysql:8\.4 \\\n\s+--nodejs-version=\$\(ddev_nodejs_version\)/, 'a generic project on MySQL 8.4, with the workspace\'s Node.js');
+  assert.match(build, /ddev config --project-type=generic --project-name=\$\{PROJECT_NAME\} --database=mariadb:11\.4 \\\n\s+--nodejs-version=\$\(ddev_nodejs_version\)/, 'a generic project on MariaDB 11.4, with the workspace\'s Node.js');
+  assert.doesNotMatch(FUN, /--database=mysql/, 'MariaDB, the database of every runtime the workspace has');
+  assert.match(read('README.md'), /Leantime supports MySQL 8\.0\+ or MariaDB 10\.6\+ \(its own README\); the Workspace uses\nMariaDB 11\.4/, 'the README says which database, and why');
   assert.ok(build.indexOf('leantime_site install defaults') > build.indexOf('leantime_wait'), 'Leantime is installed once it answers');
   assert.ok(build.indexOf('"$(leantime_probe)" != \'200\'') > build.indexOf('leantime_site install defaults'), 'then the builder checks a visitor gets the login form');
 });

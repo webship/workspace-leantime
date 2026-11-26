@@ -1,7 +1,7 @@
 {
   "name": "@webship.co/workspace-leantime",
   "version": "1.0.0",
-  "description": "Leantime for Webship Workspace: the builder (`cmd-leantime-project.sh`, a site of the open-source project management software, from Leantime's own image on the project's own MySQL, in containers: DDEV, with the default accounts in their roles of a sample project and its tasks, sprint, comments and logged time) and its tool in every sites folder, the Leantime step pack wired into the testing setup, the tasks of a Leantime as work items of the tracker family (list, read, analyze, and do the work with the workspace's AI CLI on a branch; comments, statuses, assignees and logged time after a person's click, writes off by default), and its AI items in their folders.",
+  "description": "Leantime for Webship Workspace: the builder (`cmd-leantime-project.sh`, a site of the open-source project management software, from Leantime's own image on the project's own MariaDB, in containers: DDEV, with the default accounts in their roles of a sample project and its tasks, sprint, comments and logged time) and its tool in every sites folder, the Leantime step pack wired into the testing setup, the tasks of a Leantime as work items of the tracker family (list, read, analyze, and do the work with the workspace's AI CLI on a branch; comments, statuses, assignees and logged time after a person's click, writes off by default), and its AI items in their folders.",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
   "license": "ISC",

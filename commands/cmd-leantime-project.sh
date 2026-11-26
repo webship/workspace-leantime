@@ -4,7 +4,7 @@
 
 # Installed by the Leantime plugin (plugins.sh --install leantime); __WORKSPACE__ is the workspace it was installed into.
 #
-# Build a Leantime site in containers from Leantime's own image, on the project's own MySQL: on DDEV at
+# Build a Leantime site in containers from Leantime's own image, on the project's own MariaDB: on DDEV at
 # https://<name>.ddev.site. With --install Leantime's own installer makes the workspace account the site's owner; with
 # --add-users the default accounts are in their roles of the project Webship site; with --sample-content its tasks,
 # its sprint Sprint 1, comments and logged time.
