@@ -1,0 +1,16 @@
+{
+ "jsonrpc": "2.0",
+ "result": [
+  {
+   "id": 1,
+   "name": "Sprint 1",
+   "startDate": "2026-11-23 00:00:00",
+   "endDate": "2026-12-06 23:59:59",
+   "projectId": 2,
+   "modified": "2026-11-26 01:04:09",
+   "isInherited": false,
+   "ownerProgramId": null
+  }
+ ],
+ "id": 1
+}

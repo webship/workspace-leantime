@@ -1,0 +1,24 @@
+{
+ "jsonrpc": "2.0",
+ "result": [
+  {
+   "id": 2,
+   "name": "Webship site",
+   "details": "<p>The sample project of the Webship Workspace.</p>",
+   "clientId": null,
+   "state": null,
+   "hourBudget": "0",
+   "dollarBudget": 0,
+   "type": "project",
+   "parent": null,
+   "modified": "2026-11-26 01:04:08",
+   "start": null,
+   "end": null,
+   "clientName": null,
+   "parentId": null,
+   "parentName": null,
+   "isFavorite": 0
+  }
+ ],
+ "id": 1
+}

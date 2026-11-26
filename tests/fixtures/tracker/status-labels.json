@@ -1,0 +1,48 @@
+{
+ "jsonrpc": "2.0",
+ "result": {
+  "3": {
+   "name": "New",
+   "class": "label-info",
+   "statusType": "NEW",
+   "kanbanCol": true,
+   "sortKey": 1
+  },
+  "1": {
+   "name": "Blocked",
+   "class": "label-important",
+   "statusType": "INPROGRESS",
+   "kanbanCol": true,
+   "sortKey": 2
+  },
+  "4": {
+   "name": "In Progress",
+   "class": "label-warning",
+   "statusType": "INPROGRESS",
+   "kanbanCol": true,
+   "sortKey": 3
+  },
+  "2": {
+   "name": "Waiting for Approval",
+   "class": "label-warning",
+   "statusType": "INPROGRESS",
+   "kanbanCol": true,
+   "sortKey": 4
+  },
+  "0": {
+   "name": "Done",
+   "class": "label-success",
+   "statusType": "DONE",
+   "kanbanCol": true,
+   "sortKey": 5
+  },
+  "-1": {
+   "name": "Archived",
+   "class": "label-default",
+   "statusType": "DONE",
+   "kanbanCol": false,
+   "sortKey": 6
+  }
+ },
+ "id": 1
+}
