@@ -8,13 +8,15 @@
 # after the core's own functions. Everything runs in containers, never on the host:
 #   - DDEV (the default): Leantime's image is a service of a generic project, on the project's own MariaDB (the db
 #     service), at https://<name>.ddev.site; the project's web container keeps the mail catcher.
-# Docker Compose, Podman, Kubernetes, Lando and Docksal are not proven yet: asked for one, the builder says so and
-# changes nothing.
+#   - Docker Compose, Podman and Kubernetes (the core's runtime layer, webship/workspace#841): Leantime's image is the
+#     web container's (rt_stack image), its code moved out of the folder the stack mounts the project on, run as the
+#     host user (leantime-serve.sh, rt_serve), on the project's MariaDB, at the runtime's own address.
+# Lando and Docksal are not proven yet: asked for one, the builder says so and changes nothing.
 # The site's accounts and content go through Leantime's own code in its container (leantime-site.php): its console
 # commands run in that process, and what they read (accounts, passwords) comes on its input, never on a command line.
 #
 # The container tool has no project type for Leantime, so a site of this plugin is recognised by a file on DDEV
-# (.ddev/config.leantime.yaml, written by the builder).
+# (.ddev/config.leantime.yaml, written by the builder), and by the plugin's claim on another runtime (rt_claim).
 # Four names are the ones the core's tools look for:
 #   set_leantime_users          the default accounts                     (cmd-tools-add-users.sh <project> leantime)
 #   add_leantime_users          make them, and their roles               (the same tool, and --add-users of the builder)
@@ -35,6 +37,16 @@ readonly LEANTIME_FILES='leantime';
 
 # The free memory a build asks for, in MB: Leantime's web server and PHP, beside MariaDB.
 readonly LEANTIME_MEMORY_MB=1536;
+
+# On Docker Compose, Podman and Kubernetes: the port Leantime's web server listens on in the web container, and the
+# folder the project's web image keeps Leantime's code in (the stack mounts the project on /var/www/html, where
+# Leantime's image has it).
+readonly LEANTIME_SERVE_PORT=8080;
+readonly LEANTIME_CODE='/opt/leantime';
+
+# The database of a site on every runtime: Leantime supports MySQL 8.0+ or MariaDB 10.6+, and the Workspace's runtimes
+# all have MariaDB.
+readonly LEANTIME_DATABASE='mariadb:11.4';
 
 # How many calls of its API (a minute, for an account from one address) and how many logins (a minute, from one address)
 # Leantime allows on a site the builder makes (--api-limit and --login-limit, or site_leantime_api_limit and
@@ -72,12 +84,15 @@ function leantime_runtime() {
   if declare -f runtime_of > /dev/null ; then runtime_of "$@" ; else echo 'ddev' ; fi
 }
 
-# The address of the site in this folder (or of a new build named PROJECT_NAME, on DDEV).
+# The address of the site in this folder (or of a new build named PROJECT_NAME, on DDEV); on another runtime the one
+# the runtime gives it.
 function leantime_url() {
+  if [ "$(leantime_runtime)" != 'ddev' ] && declare -f rt_url > /dev/null ; then rt_url ; return ; fi
   echo "https://${1:-${PROJECT_NAME}}.ddev.site" ;
 }
 
-# Is this folder a Leantime site of this plugin? On DDEV the builder leaves .ddev/config.leantime.yaml in it.
+# Is this folder a Leantime site of this plugin? On DDEV the builder leaves .ddev/config.leantime.yaml in it; on
+# another runtime the project carries the plugin's claim.
 function leantime_is_project() {
   local project_path="$1" ;
   [ -f "${project_path}/.ddev/config.leantime.yaml" ] && return 0 ;
@@ -105,7 +120,7 @@ function leantime_enter_project() {
 function leantime_refresh_files() {
   local project_path="$1" from="${WORKSPACE_SCRIPTS}/plugins/leantime" f ;
   [ -d "${project_path}/${LEANTIME_FILES}" ] || return 0 ;
-  for f in leantime-site.php ; do
+  for f in leantime-site.php leantime-serve.sh ; do
     if [ -f "${from}/${f}" ] && ! cmp -s "${from}/${f}" "${project_path}/${LEANTIME_FILES}/${f}" ; then
       cp "${from}/${f}" "${project_path}/${LEANTIME_FILES}/${f}" || return 1 ;
     fi
@@ -127,19 +142,50 @@ function leantime_free_memory() {
   awk '/^MemAvailable:/ { print int($2 / 1024) }' /proc/meminfo 2>/dev/null ;
 }
 
-# Write the project's files: Leantime's service (.ddev/docker-compose.leantime.yaml), its image in .ddev/.env, the
-# claim (.ddev/config.leantime.yaml) and the plugin's scripts.
+# Write the project's files: the plugin's scripts; on DDEV Leantime's service (.ddev/docker-compose.leantime.yaml), its
+# image in .ddev/.env and the claim (.ddev/config.leantime.yaml); on another runtime the claim, Leantime's image as the
+# web container's, what the project's web image adds to it, and its server.
 function leantime_write_config() {
-  local project_path="$1" release="$2" ;
+  local project_path="$1" release="$2" runtime="${3:-ddev}" ;
   local from="${WORKSPACE_SCRIPTS}/plugins/leantime" f ;
-  for f in docker-compose.leantime.yaml leantime-site.php ; do
+  for f in docker-compose.leantime.yaml leantime-site.php leantime-serve.sh ; do
     if [ ! -f "${from}/${f}" ] ; then
       echo "${f} is not in ${from}: install the plugin (plugins.sh --install leantime)." ;
       return 1 ;
     fi
   done
   mkdir -p "${project_path}/${LEANTIME_FILES}" || return 1 ;
-  cp "${from}/leantime-site.php" "${project_path}/${LEANTIME_FILES}/" || return 1 ;
+  cp "${from}/leantime-site.php" "${from}/leantime-serve.sh" "${project_path}/${LEANTIME_FILES}/" || return 1 ;
+
+  if [ "${runtime}" != 'ddev' ] ; then
+    # Another runtime: Leantime's image is the web container's, and the stack starts it as the host user.
+    ( cd "${project_path}" \
+      && rt_claim leantime \
+      && rt_stack image "docker.io/leantime/leantime:${release}" \
+      && rt_web_build leantime <<'DOCKEREOF'
+# Leantime's image is the web container's here (rt_stack image), and the stack mounts the project on /var/www/html,
+# where the image keeps Leantime's code: the code moves to /opt/leantime, and nginx, PHP-FPM and the scheduler are
+# pointed there (a release whose settings name the old folder elsewhere stops the build, saying why). The files Leantime
+# keeps beside its database (uploads and plugins) live in the project's leantime/files, and what Leantime writes while
+# it runs (its storage, its cache, nginx's and supervisord's files) belongs to the host user, www-data with the host's
+# UID by now. tini stays the container's first process, as in Leantime's own image; the stack's start runs under it.
+ENTRYPOINT ["/sbin/tini", "--"]
+RUN mkdir -p /opt/leantime \
+  && cp -a /var/www/html/. /opt/leantime/ \
+  && find /var/www/html -mindepth 1 -delete \
+  && sed -i 's#/var/www/html#/opt/leantime#g' /etc/nginx/nginx.conf /etc/supervisor/conf.d/supervisord.conf /usr/local/etc/php-fpm.d/www.conf \
+  && if grep -rqs '/var/www/html' /etc/nginx /etc/supervisor /usr/local/etc/php-fpm.d ; then echo "Leantime's image names /var/www/html in a setting the Leantime plugin does not know: build this release on DDEV, or update the plugin." >&2 ; exit 1 ; fi \
+  && rm -rf /opt/leantime/userfiles /opt/leantime/public/userfiles /opt/leantime/app/Plugins \
+  && ln -s /var/www/html/leantime/files/userfiles /opt/leantime/userfiles \
+  && ln -s /var/www/html/leantime/files/public-userfiles /opt/leantime/public/userfiles \
+  && ln -s /var/www/html/leantime/files/plugins /opt/leantime/app/Plugins \
+  && chown -R www-data:www-data /opt/leantime/storage /opt/leantime/bootstrap/cache /run /var/lib/nginx /var/log/nginx
+DOCKEREOF
+    ) || return 1 ;
+    ( cd "${project_path}" && rt_serve "${LEANTIME_SERVE_PORT}" "bash ${LEANTIME_FILES}/leantime-serve.sh" ) || return 1 ;
+    return 0 ;
+  fi
+
   cp "${from}/docker-compose.leantime.yaml" "${project_path}/.ddev/docker-compose.leantime.yaml" || return 1 ;
   printf 'LEANTIME_IMAGE=%s\n' "docker.io/leantime/leantime:${release}" > "${project_path}/.ddev/.env" || return 1 ;
   cat > "${project_path}/.ddev/config.leantime.yaml" <<YAMLEOF
@@ -153,9 +199,11 @@ YAMLEOF
 # The site's own values (leantime/env, which only you can read): the address, the project's database, the mail
 # catcher, and its session key, of this site only.
 function leantime_write_env() {
-  local project_path="$1" release="$2" base_url="$3" api_limit="${4:-${LEANTIME_API_LIMIT}}" login_limit="${5:-${LEANTIME_LOGIN_LIMIT}}" ;
-  local secure='false' ;
+  local project_path="$1" release="$2" base_url="$3" api_limit="${4:-${LEANTIME_API_LIMIT}}" login_limit="${5:-${LEANTIME_LOGIN_LIMIT}}" runtime="${6:-ddev}" ;
+  local secure='false' mail='web' ;
   [[ "${base_url}" == https://* ]] && secure='true' ;
+  # The mail catcher: DDEV's web container on DDEV, the stack's own mail service elsewhere.
+  [ "${runtime}" != 'ddev' ] && mail='mail' ;
   ( umask 077 && cat > "${project_path}/${LEANTIME_FILES}/env" <<ENVEOF
 # The values of this Leantime site, made by the Leantime builder of the workspace: its session key is of this site
 # only. Read by Leantime's container; never printed.
@@ -174,7 +222,7 @@ LEAN_DEFAULT_TIMEZONE=UTC
 LEAN_ALLOW_TELEMETRY=false
 LEAN_EMAIL_RETURN=leantime@example.com
 LEAN_EMAIL_USE_SMTP=true
-LEAN_EMAIL_SMTP_HOSTS=web
+LEAN_EMAIL_SMTP_HOSTS=${mail}
 LEAN_EMAIL_SMTP_PORT=1025
 LEAN_EMAIL_SMTP_AUTH=false
 LEAN_EMAIL_SMTP_AUTO_TLS=false
@@ -186,21 +234,32 @@ ENVEOF
   ) ;
 }
 
-# Run a command line in Leantime's container, in its folder (/var/www/html), as its own user; what is piped in
-# reaches it.
+# Run a command line where Leantime's code is, as the user Leantime runs as; what is piped in reaches it. On DDEV in
+# Leantime's own container (/var/www/html); on another runtime in the web container (/opt/leantime), with the site's
+# values.
 function leantime_exec() {
-  ddev exec -s leantime "sh -c $(printf '%q' "cd /var/www/html && ${1}")" ;
+  if [ "$(leantime_runtime)" = 'ddev' ] ; then
+    ddev exec -s leantime "sh -c $(printf '%q' "cd /var/www/html && ${1}")" ;
+  else
+    ddev exec "set -a ; . /var/www/html/${LEANTIME_FILES}/env ; set +a ; cd ${LEANTIME_CODE} && ${1}" ;
+  fi
 }
 
-# The folder the plugin's scripts are read from in Leantime's container.
+# The folder the plugin's scripts are read from where Leantime runs.
 function leantime_scripts_dir() {
-  echo '/opt/webship' ;
+  if [ "$(leantime_runtime)" = 'ddev' ] ; then echo '/opt/webship' ; else echo "/var/www/html/${LEANTIME_FILES}" ; fi
 }
 
-# The answer of Leantime's login page, asked inside the project's network from the web container: 200 once Leantime
-# is installed and reaches its database, a redirect (to its installer) before.
+# Where Leantime answers inside the project's network: on DDEV its own service, from the web container; on another
+# runtime its web server, in the web container itself.
+function leantime_inside_url() {
+  if [ "$(leantime_runtime)" = 'ddev' ] ; then echo 'http://leantime:8080' ; else echo "http://127.0.0.1:${LEANTIME_SERVE_PORT}" ; fi
+}
+
+# The answer of Leantime's login page, asked inside the project's network: 200 once Leantime is installed and reaches
+# its database, a redirect (to its installer) before.
 function leantime_probe() {
-  ddev exec "curl -s -o /dev/null -m 10 -w '%{http_code}' http://leantime:8080/auth/login" < /dev/null 2>/dev/null | tr -d '\r' | tail -1 ;
+  ddev exec "curl -s -o /dev/null -m 10 -w '%{http_code}' $(leantime_inside_url)/auth/login" < /dev/null 2>/dev/null | tr -d '\r' | tail -1 ;
 }
 
 # Wait until the site answers, in the project's folder: up to five minutes.
@@ -263,8 +322,12 @@ function leantime_build() {
   local project_path="${WORKSPACE_ROOT}/${doc_name}/${PROJECT_NAME}" ;
   local runtime ; runtime="$(cd "${WORKSPACE_ROOT}/${doc_name}" && leantime_runtime)" ;
 
-  if [ "${runtime}" != 'ddev' ] ; then
-    echo "Leantime builds on DDEV for now (--runtime ddev), not on ${runtime}: that runtime is not proven for it yet. Nothing was changed." ;
+  case "${runtime}" in
+    ddev|docker|podman|kubernetes) ;;
+    *) echo "Leantime builds on DDEV, Docker Compose, Podman and Kubernetes for now (--runtime ddev, docker, podman or kubernetes), not on ${runtime}: that runtime is not proven for it yet. Nothing was changed." ; exit 1 ;;
+  esac
+  if [ "${runtime}" != 'ddev' ] && ! declare -f rt_serve > /dev/null ; then
+    echo "--runtime ${runtime} needs a Webship Workspace whose runtimes serve an application of its own (rt_serve, webship/workspace#841): update the workspace, or build on DDEV. Nothing was changed." ;
     exit 1 ;
   fi
   if ! [[ "${release}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ; then
@@ -307,13 +370,23 @@ function leantime_build() {
 
   # A generic project on MariaDB 11.4: Leantime supports MySQL 8.0+ or MariaDB 10.6+, and the Workspace uses MariaDB,
   # so a site's database is the same on every runtime.
-  ddev config --project-type=generic --project-name=${PROJECT_NAME} --database=mariadb:11.4 \
-    --nodejs-version=$(ddev_nodejs_version) < /dev/null || exit 1 ;
-  leantime_write_config "${project_path}" "${release}" || exit 1 ;
+  if [ "${runtime}" = 'ddev' ] ; then
+    ddev config --project-type=generic --project-name=${PROJECT_NAME} --database=${LEANTIME_DATABASE} \
+      --nodejs-version=$(ddev_nodejs_version) < /dev/null || exit 1 ;
+  else
+    # The runtime's own project: Docker Compose, Podman or Kubernetes, through the runtime layer.
+    ddev config --project-type=generic --webserver-type=generic --project-name=${PROJECT_NAME} --database=${LEANTIME_DATABASE} --auto < /dev/null || exit 1 ;
+  fi
+  leantime_write_config "${project_path}" "${release}" "${runtime}" || exit 1 ;
+  # The address once the runtime has given the project its port.
   local base_url ; base_url="$(leantime_url)" ;
-  leantime_write_env "${project_path}" "${release}" "${base_url}" "${api_limit}" "${login_limit}" || exit 1 ;
+  leantime_write_env "${project_path}" "${release}" "${base_url}" "${api_limit}" "${login_limit}" "${runtime}" || exit 1 ;
 
-  echo "Starting the project and Leantime ${release}: its image is a download of about 320 MB the first time." ;
+  if [ "${runtime}" = 'ddev' ] ; then
+    echo "Starting the project and Leantime ${release}: its image is a download of about 320 MB the first time." ;
+  else
+    echo "Starting the project and Leantime ${release}: its image is a download of about 320 MB the first time, and the project's web image is built from it." ;
+  fi
   ddev_up start -y < /dev/null || exit 1 ;
   leantime_wait || exit 1 ;
 
@@ -433,7 +506,12 @@ function leantime_cli_tool() {
   trim_project_name ;
   leantime_enter_project || exit 1 ;
 
-  ddev describe -j 2>/dev/null | grep -q '"status":"running"' || ddev start -y < /dev/null || exit 1 ;
+  # A site that answers is left as it is: on Podman a start makes every container of the project again
+  # (webship/workspace#906). One that does not is started through its runtime.
+  case "$(leantime_probe)" in
+    200|302|303) ;;
+    *) ddev start < /dev/null > /dev/null 2>&1 || ddev start -y < /dev/null || exit 1 ;;
+  esac
   leantime_wait > /dev/null || { echo "Leantime of ${PROJECT_NAME} does not answer; start it again (ddev restart in ${doc_name}/${PROJECT_NAME})." ; exit 1 ; } ;
 
   if [ ! "${RUN}" == '_none_' ] ; then

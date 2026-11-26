@@ -45,7 +45,8 @@ export function assistantContext(): string {
   return [
     'Leantime (a plugin, @webship.co/workspace-leantime), the open-source project management software: a site is built with',
     '`bash cmd-leantime-project.sh <name> --install --add-users --sample-content` from a sites folder (dev, test, sandboxes, demos):',
-    'Leantime\'s own image (3.17.0 by default, `--release`) on the project\'s own MariaDB 11.4, on DDEV at https://<name>.ddev.site; other runtimes are not proven for it yet.',
+    'Leantime\'s own image (3.17.0 by default, `--release`) on the project\'s own MariaDB 11.4, on DDEV at https://<name>.ddev.site,',
+    'or with `--runtime docker` or `podman` at http://127.0.0.1:<port>, or with `--runtime kubernetes` on the workspace\'s kind cluster at the node\'s address (the image is the web container\'s there, run as the host user, its code moved to /opt/leantime).',
     'The builder asks for 1.5 GB of free memory before it starts.',
     '`--install` runs Leantime\'s own installer and makes the workspace account the site\'s owner (its onboarding project, My Project, stays empty: the installer fills it only for a person);',
     '`--add-users` adds the default accounts (owner: Company Manager, member: Editor, commenter: Commenter, reader: Read Only, in the team of the project Webship site; stranger: an Editor outside it), each @example.com;',

@@ -4,7 +4,7 @@ Leantime, the open-source project management software, for the [Webship Workspac
 a container-based workspace (DDEV by default). The plugin brings:
 
 - **a builder**, `cmd-leantime-project.sh`: a real Leantime site from Leantime's own image on the project's own MariaDB,
-  on DDEV, installed by Leantime's own installer, its default accounts in their roles of a sample project, and its
+  on DDEV, Docker Compose, Podman or Kubernetes, installed by Leantime's own installer, its default accounts in their roles of a sample project, and its
   tasks, sprint, comments and logged time;
 - **a tool**, `cmd-tools-leantime-cli.sh`: what a site is and its accounts, Leantime's own console commands in its
   container, the default accounts, the sample content, a clean-up after a stopped test run, and the dashboard's
@@ -31,8 +31,8 @@ bash core/scripts/plugins.sh --configure leantime
 
 - A sites folder: one of the `dev`, `test`, `sandboxes` or `demos` plugins. The commands are placed there.
 - The AI folders `ai-agents`, `ai-skills`, `ai-commands` and `ai-prompts`, where its AI items land.
-- DDEV, the container runtime Leantime is proven on so far. Docker Compose, Podman and Kubernetes are not proven for
-  it yet: asked for one, the builder says so and changes nothing.
+- A container runtime: DDEV, or Docker, Podman or a kind cluster with the workspace's container runtimes
+  (`--runtime docker`, `podman`, `kubernetes`), whose stacks serve an application of its own (webship/workspace#841).
 - A download of about 320 MB for Leantime's image the first time (about 700 MB on disk), and memory: the builder asks
   for 1.5 GB free before it starts (`free -m`).
 
@@ -41,6 +41,7 @@ bash core/scripts/plugins.sh --configure leantime
 ```bash
 cd ~/workspace/sandboxes                      # or dev, test, demos
 bash cmd-leantime-project.sh mysite --install --add-users --sample-content
+bash cmd-leantime-project.sh mysite --install --add-users --sample-content --runtime docker   # or podman, kubernetes
 ```
 
 | Flag | What it does |
@@ -51,14 +52,28 @@ bash cmd-leantime-project.sh mysite --install --add-users --sample-content
 | `--release <X.Y.Z>` | The release of Leantime's image: 3.17.0 by default |
 | `--api-limit <number>` | The calls of its API Leantime allows an account a minute on the site, a dev and test setting: 1000 by default, where Leantime's own default is 120 |
 | `--login-limit <number>` | The logins Leantime allows from one address a minute on the site, a dev and test setting: 100 by default, where Leantime's own default is 20 |
-| `--runtime ddev` | DDEV, the runtime proven for Leantime so far (the default, or `container.runtime` of `settings.yml`) |
+| `--runtime ddev`, `docker`, `podman` or `kubernetes` | DDEV (the default, or `container.runtime` of `settings.yml`), Docker Compose, Podman or Kubernetes (a kind cluster) |
 | `--launch` | Open the site when it is ready |
 
-A project of the same name is deleted first, with its database and its files. Leantime's own image
-(`leantime/leantime`: its web server and PHP in one container) is a service of a generic project, on the project's
-MariaDB 11.4, at `https://mysite.ddev.site`. The project's web container keeps the mail catcher, at
-`https://mysite.ddev.site:8026`, where the site's mail goes. What Leantime keeps beside its database (its files, its
-plugins, its logs) is in volumes named after the project: removing the project removes them with it.
+A project of the same name is deleted first, with its database and its files.
+
+- **On DDEV** Leantime's own image (`leantime/leantime`: nginx, PHP-FPM and Leantime's scheduler in one container) is a
+  service of a generic project, on the project's MariaDB 11.4, at `https://mysite.ddev.site`. The project's web
+  container keeps the mail catcher, at `https://mysite.ddev.site:8026`, where the site's mail goes. What Leantime keeps
+  beside its database (its files, its plugins, its logs) is in volumes named after the project: removing the project
+  removes them with it.
+- **On Docker Compose and Podman** the same image is the web container's (the workspace's generic stack), run as the
+  host user, on the project's own MariaDB 11.4; the site is at `http://127.0.0.1:<port>`, and the stack's own Mailpit
+  takes its mail. The stack mounts the project on `/var/www/html`, where Leantime's image keeps its code: the project's
+  web image moves the code to `/opt/leantime` and points nginx, PHP-FPM and the scheduler there (a release that names
+  the old folder in another setting stops the build, saying why). The files Leantime keeps beside its database
+  (uploads and plugins) live in the project's `leantime/files`, and what it writes while it runs belongs to the host
+  user. `leantime-serve.sh` puts the site's values into the environment and runs the image's own start, its output
+  through a pipe of the host user's: supervisord, nginx and PHP-FPM open `/dev/stdout` by its name, which the host
+  user cannot open again when the container's own output belongs to root.
+- **On Kubernetes** (the workspace's kind cluster) the web pod runs the same image, the project's folder mounted from
+  the host; the site is at the node's address and a NodePort.
+- Lando and Docksal are not proven for Leantime yet: asked for one, the builder says so and changes nothing.
 
 | Image | What it is | Source and licence |
 | --- | --- | --- |
@@ -118,6 +133,10 @@ bash cmd-tools-leantime-cli.sh mysite --add-users                     # the defa
 bash cmd-tools-leantime-cli.sh mysite --cancel-users                  # keep them from logging in
 bash cmd-tools-leantime-cli.sh mysite --connect member                # the dashboard reads this site as member
 ```
+
+The tool starts a site that does not answer, and leaves one that does: on Podman a start makes every container of the
+project again (webship/workspace#906). On Docker Compose, Podman and Kubernetes it runs Leantime's commands in the web
+container, as the host user, with the site's values.
 
 `--connect <login>` makes a new bearer token of the account with Leantime's own console (`auth:create-bearer-token`),
 revokes the earlier one the tool made for it, and writes the token, with the site's address, into

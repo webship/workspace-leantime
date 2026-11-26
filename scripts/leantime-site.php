@@ -1,7 +1,8 @@
 <?php
 /*
- * The Leantime site of a Webship Workspace project, from Leantime's own code in its container: the plugin's
- * leantime-site.php, read from the project's leantime/ folder (at /opt/webship on DDEV).
+ * The Leantime site of a Webship Workspace project, from Leantime's own code where it runs: the plugin's
+ * leantime-site.php, read from the project's leantime/ folder (at /opt/webship in Leantime's container on DDEV, at
+ * /var/www/html/leantime in the web container on another runtime).
  *
  *     php /opt/webship/leantime-site.php <verb>…
  *
@@ -26,9 +27,12 @@
 
 define('LEAN_CLI', true);
 define('ARTISAN_BINARY', 'bin/leantime');
-chdir('/var/www/html');
-require '/var/www/html/vendor/autoload.php';
-$app = require_once '/var/www/html/bootstrap/app.php';
+// Leantime's code: in its own container at /var/www/html (DDEV), or at /opt/leantime in the project's web container
+// (Docker Compose, Podman, Kubernetes), where the stack mounts the project on /var/www/html.
+$root = is_file('/opt/leantime/bootstrap/app.php') ? '/opt/leantime' : '/var/www/html';
+chdir($root);
+require $root . '/vendor/autoload.php';
+$app = require_once $root . '/bootstrap/app.php';
 $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
