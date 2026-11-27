@@ -168,6 +168,15 @@ test('Leantime\'s service on DDEV: its own image at the project\'s address, on t
   assert.match(env, /\[ "\$\{runtime\}" != 'ddev' \] && mail='mail' ;/);
 });
 
+test('after its installer, Leantime\'s own caches are cleared before its login page is checked (#7)', () => {
+  const build = FUN.slice(FUN.indexOf('function leantime_build()'), FUN.indexOf('\n}\n', FUN.indexOf('function leantime_build()')));
+  const install = build.indexOf('| leantime_site install defaults');
+  const clear = build.indexOf('leantime_exec "php bin/leantime cache:clearAll" < /dev/null > /dev/null 2>&1');
+  const check = build.indexOf('if [ "$(leantime_probe)" != \'200\' ] ; then');
+  assert.ok(install > 0 && clear > install && check > clear, 'the installer, then Leantime\'s own cache:clearAll, then the check: requests before the installer may have cached "the database needs an update"');
+  assert.match(FUN, /function leantime_exec\(\) \{\n\s+if \[ "\$\(leantime_runtime\)" = 'ddev' \] ; then\n\s+ddev exec -s leantime /, 'in Leantime\'s container on DDEV (as www-data), in the web container elsewhere');
+});
+
 test('a test site allows the calls and logins a suite makes, by a setting of its own; a connected Leantime keeps its own', () => {
   assert.match(FUN, /^readonly LEANTIME_API_LIMIT=1000;$/m);
   assert.match(FUN, /^readonly LEANTIME_LOGIN_LIMIT=100;$/m);
