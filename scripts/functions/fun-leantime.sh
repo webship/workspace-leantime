@@ -394,6 +394,11 @@ function leantime_build() {
     echo "Installing Leantime with its own installer: the workspace account is the site's owner." ;
     leantime_install_payload "${account_mail:-${account_name}@example.com}" "${account_pass}" "${account_name^}" \
       | leantime_site install defaults || { echo "Leantime could not be installed." ; exit 1 ; } ;
+    # Leantime's own caches, cleared with its own command: the requests while it was waited for, before its installer
+    # ran, may have cached "the database needs an update", and its login page would then send a visitor to its update
+    # page (webship/workspace-leantime#7).
+    leantime_exec "php bin/leantime cache:clearAll" < /dev/null > /dev/null 2>&1 \
+      || echo "Leantime's caches could not be cleared after its installer." ;
     if [ "$(leantime_probe)" != '200' ] ; then
       echo "Leantime answers $(leantime_probe) on its login page after its installer: a visitor would not get the login form." ;
       exit 1 ;
